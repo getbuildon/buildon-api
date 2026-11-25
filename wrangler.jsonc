@@ -1,7 +1,13 @@
 {
-  // Servidor de datos de BuildOn (ver docs/plan-etapa-2/plan-rendimiento-spa.md).
-  // Producción: `buildon-api` (rama main). Test: `buildon-api-test` (rama develop).
-  // Local: `npm run dev` con los secretos en api/.dev.vars (fuera de git).
+  // Servidor de datos de BuildOn. Producción: `buildon-api` (rama main).
+  // Test: `buildon-api-test` (rama develop). Local: `npm run dev` con .dev.vars (fuera de git).
+  //
+  // Dominio: por ahora la dirección *.workers.dev que da Cloudflare. Para pasar a
+  // api.getbuildon.com (requiere el DNS de getbuildon.com en Cloudflare):
+  //   1) destapar "routes" en cada ambiente;
+  //   2) en Vercel, cambiar NEXT_PUBLIC_API_URL al dominio nuevo y redeploy;
+  //   3) más adelante, poner "workers_dev": false.
+  // El CORS no cambia: depende del dominio de la app, no del de la API.
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "buildon-api",
   "main": "src/index.ts",
@@ -12,6 +18,8 @@
     "logs": { "head_sampling_rate": 1 },
     "traces": { "enabled": true, "head_sampling_rate": 0.01 }
   },
+  "workers_dev": true,
+  // "routes": [{ "pattern": "api.getbuildon.com", "custom_domain": true }],
   "vars": {
     "BUILDON_ENV": "produccion",
     "APP_PUBLIC_URL": "https://getbuildon.com"
@@ -24,8 +32,8 @@
   "env": {
     "test": {
       "name": "buildon-api-test",
-      // Hasta pasar el DNS de getbuildon.com a Cloudflare: dirección *.workers.dev.
       "workers_dev": true,
+      // "routes": [{ "pattern": "api-test.getbuildon.com", "custom_domain": true }],
       "vars": {
         "BUILDON_ENV": "test",
         "APP_PUBLIC_URL": "https://test.getbuildon.com"
