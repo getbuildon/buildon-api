@@ -15,13 +15,22 @@ export type ObraDelArranque = {
   nombre: string;
   direccion: string | null;
   estado: string;
+  pisos: number;
   empresa: { id: string; nombre: string; logoUrl: string | null } | null;
   portadaUrl: string | null;
   acceso: AccesoAObra;
 };
 
 export type Arranque = {
-  persona: { id: string; email: string | null; nombre: string | null; apellido: string | null; avatarUrl: string | null };
+  persona: {
+    id: string;
+    email: string | null;
+    nombre: string | null;
+    apellido: string | null;
+    avatarUrl: string | null;
+    /** Solo decide si se muestra el acceso; el backoffice valida de nuevo en su servidor. */
+    veBackoffice: boolean;
+  };
   empresas: { id: string; nombre: string; logoUrl: string | null; rol: string }[];
   obras: ObraDelArranque[];
 };
@@ -48,14 +57,27 @@ function fallo(error: { message: string } | null, que: string): void {
   if (error) throw new ApiError(502, "base", `No pudimos leer ${que}. Probá de nuevo.`);
 }
 
-export async function leerArranque(db: SupabaseClient, userId: string, email: string | null): Promise<Arranque> {
+export function esDeBackoffice(lista: string | undefined, email: string | null): boolean {
+  if (!email || !lista?.trim()) return false;
+  const permitidos = lista.split(",").map((e) => e.trim().toLowerCase());
+  return permitidos.includes(email.trim().toLowerCase());
+}
+
+export async function leerArranque(
+  db: SupabaseClient,
+  userId: string,
+  email: string | null,
+  backoffice?: string,
+): Promise<Arranque> {
   const [perfilRes, empresasRes, miembrosRes, clienteRes] = await Promise.all([
     db.from("profiles").select("first_name, last_name, avatar_url, email").eq("id", userId).maybeSingle(),
     db
       .from("company_members")
       .select("role, company:companies ( id, name, logo_url )")
       .eq("user_id", userId)
-      .eq("status", "active"),
+      .eq("status", "active")
+      // La más nueva primero, como la app: es la empresa que muestra el inicio.
+      .order("created_at", { ascending: false }),
     db
       .from("project_members")
       .select(`project_id, user_type:user_types ( slug ), project:projects ( ${COLUMNAS_OBRA} )`)
@@ -107,6 +129,17 @@ export async function leerArranque(db: SupabaseClient, userId: string, email: st
   }
   for (const obra of obrasDeEmpresa) filas.set(obra.id, obra);
 
+  // Cantidad de pisos por obra (dato de la tarjeta del inicio).
+  const pisosPorObra = new Map<string, number>();
+  if (filas.size > 0) {
+    const res = await db.from("project_floors").select("project_id").in("project_id", [...filas.keys()]);
+    fallo(res.error, "los pisos de tus obras");
+    for (const fila of res.data ?? []) {
+      const id = fila.project_id as string;
+      pisosPorObra.set(id, (pisosPorObra.get(id) ?? 0) + 1);
+    }
+  }
+
   const obras: ObraDelArranque[] = [];
   for (const obra of filas.values()) {
     const acceso = resolverAcceso({
@@ -121,6 +154,7 @@ export async function leerArranque(db: SupabaseClient, userId: string, email: st
       nombre: obra.name,
       direccion: obra.location?.trim() || null,
       estado: obra.status ?? "active",
+      pisos: pisosPorObra.get(obra.id) ?? 0,
       empresa: empresa ? { id: empresa.id, nombre: empresa.name, logoUrl: empresa.logo_url } : null,
       portadaUrl: obra.image_url ?? obra.cover_url ?? null,
       acceso,
@@ -136,6 +170,7 @@ export async function leerArranque(db: SupabaseClient, userId: string, email: st
       nombre: perfil?.first_name ?? null,
       apellido: perfil?.last_name ?? null,
       avatarUrl: perfil?.avatar_url ?? null,
+      veBackoffice: esDeBackoffice(backoffice, perfil?.email ?? email),
     },
     empresas,
     obras,

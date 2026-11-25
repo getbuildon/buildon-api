@@ -9,6 +9,8 @@ export type Entorno = {
   SUPABASE_ANON_KEY: string;
   /** Solo para lo que la RLS no cubre (nombres del equipo, invitaciones). Nunca llega al navegador. */
   SUPABASE_SERVICE_ROLE_KEY?: string;
+  /** Mails que ven el acceso al backoffice, separados por coma (igual que en la app). */
+  BACKOFFICE_ALLOWED_EMAILS?: string;
   /** Un dato por pedido: ruta, estado, ms. */
   METRICAS?: AnalyticsEngineDataset;
   /** Límite por IP de las rutas sin sesión. */
