@@ -1,0 +1,4 @@
+# Copiar a .dev.vars (fuera de git). Valores de la base de TEST.
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=

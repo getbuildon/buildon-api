@@ -1,0 +1,25 @@
+{
+  "name": "@buildon/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "wrangler dev --port 8790",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "deploy:test": "wrangler deploy --env test"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "hono": "^4.13.21",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261124.1",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1",
+    "wrangler": "^4.168.0"
+  }
+}

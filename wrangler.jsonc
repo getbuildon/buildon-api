@@ -1,0 +1,47 @@
+{
+  // Servidor de datos de BuildOn (ver docs/plan-etapa-2/plan-rendimiento-spa.md).
+  // Producción: `buildon-api` (rama main). Test: `buildon-api-test` (rama develop).
+  // Local: `npm run dev` con los secretos en api/.dev.vars (fuera de git).
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "buildon-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-02",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  },
+  "vars": {
+    "BUILDON_ENV": "produccion",
+    "APP_PUBLIC_URL": "https://getbuildon.com"
+  },
+  "analytics_engine_datasets": [{ "binding": "METRICAS", "dataset": "buildon_api_produccion" }],
+  "ratelimits": [
+    { "name": "LIMITE_NAVEGADOR", "namespace_id": "2001", "simple": { "limit": 30, "period": 60 } },
+    { "name": "LIMITE_SESION", "namespace_id": "2002", "simple": { "limit": 600, "period": 60 } }
+  ],
+  "env": {
+    "test": {
+      "name": "buildon-api-test",
+      // Hasta pasar el DNS de getbuildon.com a Cloudflare: dirección *.workers.dev.
+      "workers_dev": true,
+      "vars": {
+        "BUILDON_ENV": "test",
+        "APP_PUBLIC_URL": "https://test.getbuildon.com"
+      },
+      "analytics_engine_datasets": [{ "binding": "METRICAS", "dataset": "buildon_api_test" }],
+      "ratelimits": [
+        { "name": "LIMITE_NAVEGADOR", "namespace_id": "2011", "simple": { "limit": 30, "period": 60 } },
+        { "name": "LIMITE_SESION", "namespace_id": "2012", "simple": { "limit": 600, "period": 60 } }
+      ]
+    },
+    "local": {
+      "name": "buildon-api-local",
+      "vars": {
+        "BUILDON_ENV": "local",
+        "APP_PUBLIC_URL": "http://localhost:3000"
+      }
+    }
+  }
+}
