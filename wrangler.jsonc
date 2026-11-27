@@ -19,6 +19,9 @@
     "traces": { "enabled": true, "head_sampling_rate": 0.01 }
   },
   "workers_dev": true,
+  // Correr cerca de la base (São Paulo) y no en el borde más cercano a quien pide: cada
+  // pedido hace varias consultas a Supabase y cada ida y vuelta corta suma.
+  "placement": { "mode": "smart" },
   // "routes": [{ "pattern": "api.getbuildon.com", "custom_domain": true }],
   "vars": {
     "BUILDON_ENV": "produccion",
@@ -33,6 +36,7 @@
     "test": {
       "name": "buildon-api-test",
       "workers_dev": true,
+      "placement": { "mode": "smart" },
       // "routes": [{ "pattern": "api-test.getbuildon.com", "custom_domain": true }],
       "vars": {
         "BUILDON_ENV": "test",

@@ -35,12 +35,23 @@ export function tokenDe(request: Request): string | null {
   return match?.[1]?.trim() || null;
 }
 
+/**
+ * Un solo cliente para validar sesiones, que vive entre pedidos: guarda las claves
+ * públicas de firma (JWKS) en memoria y no las vuelve a descargar en cada pedido.
+ */
+let clienteDeAuth: { url: string; cliente: SupabaseClient } | null = null;
+function auth(env: Entorno): SupabaseClient {
+  if (clienteDeAuth?.url !== env.SUPABASE_URL) {
+    clienteDeAuth = { url: env.SUPABASE_URL, cliente: createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, opciones) };
+  }
+  return clienteDeAuth.cliente;
+}
+
 /** Valida el token (firma y vencimiento) sin un viaje extra a Auth cuando las claves son asimétricas. */
 export async function sesionDe(env: Entorno, request: Request): Promise<Sesion> {
   const token = tokenDe(request);
   if (!token) throw sinSesion();
-  const cliente = clienteDePersona(env, token);
-  const { data, error } = await cliente.auth.getClaims(token);
+  const { data, error } = await auth(env).auth.getClaims(token);
   const claims = data?.claims;
   if (error || !claims?.sub) throw sinSesion();
   return { userId: claims.sub, email: typeof claims.email === "string" ? claims.email : null, token };

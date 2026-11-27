@@ -183,3 +183,51 @@ export async function versionDe(datos: unknown): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(hash).slice(0, 12)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+/**
+ * El acceso de la persona a UNA obra, en una sola tanda de consultas en paralelo (en vez
+ * de leer todas sus obras como el arranque). Mismo criterio que leerArranque: tipo en el
+ * equipo, owner/admin de la empresa de la obra, o cliente de alguna unidad.
+ * null: no tiene acceso (o la obra no existe; la RLS tampoco se la deja ver).
+ */
+export async function accesoAObra(
+  db: SupabaseClient,
+  userId: string,
+  obraId: string,
+): Promise<{ id: string; acceso: AccesoAObra } | null> {
+  const [obraRes, miembroRes, empresasRes, clienteRes] = await Promise.all([
+    db.from("projects").select("id, company_id").eq("id", obraId).maybeSingle(),
+    db
+      .from("project_members")
+      .select("user_type:user_types ( slug )")
+      .eq("project_id", obraId)
+      .eq("user_id", userId)
+      .eq("is_active", true),
+    db.from("company_members").select("company_id, role").eq("user_id", userId).eq("status", "active"),
+    db
+      .from("unit_clients")
+      .select("unit_id, unit:project_units!inner ( project_id )")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .eq("unit.project_id", obraId),
+  ]);
+  fallo(obraRes.error, "la obra");
+  fallo(miembroRes.error, "tu lugar en la obra");
+  fallo(empresasRes.error, "tus empresas");
+  fallo(clienteRes.error, "tus unidades");
+  const obra = obraRes.data;
+  if (!obra) return null;
+
+  let tipoEnObra: TipoDeUsuario | null = null;
+  for (const m of miembroRes.data ?? []) {
+    const slug = una(m.user_type as { slug: string } | { slug: string }[] | null)?.slug;
+    if (slug === "owner" || slug === "admin" || slug === "supervisor" || slug === "operador" || slug === "cliente") tipoEnObra = slug;
+  }
+  const adminDeEmpresa =
+    obra.company_id != null &&
+    (empresasRes.data ?? []).some((e) => e.company_id === obra.company_id && (e.role === "owner" || e.role === "admin"));
+  const unidadesDeCliente = (clienteRes.data ?? []).map((c) => c.unit_id as string);
+
+  const acceso = resolverAcceso({ tipoEnObra, adminDeEmpresa, unidadesDeCliente });
+  return acceso ? { id: obra.id as string, acceso } : null;
+}

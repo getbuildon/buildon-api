@@ -2,7 +2,7 @@ import { Hono, type Context } from "hono";
 import { ambiente, type Entorno } from "./entorno";
 import { ApiError } from "./error";
 import { puertaDelNavegador } from "./navegador";
-import { leerArranque, versionDe } from "./rutas/arranque";
+import { accesoAObra, leerArranque, versionDe } from "./rutas/arranque";
 import { leerProgresoDeObras } from "./rutas/progreso";
 import { leerResumenDeObra } from "./rutas/resumen";
 import { leerTrabajoDeObra } from "./rutas/trabajo";
@@ -58,8 +58,8 @@ async function obraConPermiso(c: Context<{ Bindings: Entorno }>, permiso: Permis
   const sesion = await sesionDe(c.env, c.req.raw);
   const db = clienteDePersona(c.env, sesion.token);
   const obraId = c.req.param("id") ?? "";
-  const arranque = await leerArranque(db, sesion.userId, sesion.email);
-  const obra = arranque.obras.find((o) => o.id === obraId);
+  // Solo el acceso a esta obra: una tanda de consultas en paralelo.
+  const obra = await accesoAObra(db, sesion.userId, obraId);
   const pedidos = permiso === null ? [] : Array.isArray(permiso) ? permiso : [permiso];
   if (!obra || (pedidos.length > 0 && !pedidos.some((p) => obra.acceso.permisos[p] === true))) {
     throw new ApiError(404, "sin_acceso", "No encontramos esa obra o no tenés acceso a esta sección.");
