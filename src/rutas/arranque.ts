@@ -18,6 +18,7 @@ export type ObraDelArranque = {
   pisos: number;
   empresa: { id: string; nombre: string; logoUrl: string | null } | null;
   portadaUrl: string | null;
+  rol: string | null;
   acceso: AccesoAObra;
 };
 
@@ -80,7 +81,7 @@ export async function leerArranque(
       .order("created_at", { ascending: false }),
     db
       .from("project_members")
-      .select(`project_id, user_type:user_types ( slug ), project:projects ( ${COLUMNAS_OBRA} )`)
+      .select(`project_id, user_type:user_types ( slug ), role:project_roles ( label ), project:projects ( ${COLUMNAS_OBRA} )`)
       .eq("user_id", userId)
       .eq("is_active", true),
     db
@@ -110,10 +111,13 @@ export async function leerArranque(
 
   const filas = new Map<string, FilaObra>();
   const tipoPorObra = new Map<string, TipoDeUsuario>();
+  const rolPorObra = new Map<string, string>();
   for (const m of miembrosRes.data ?? []) {
     const obra = una(m.project as unknown as FilaObra | FilaObra[] | null);
     if (!obra) continue;
     filas.set(obra.id, obra);
+    const rol = una(m.role as { label: string } | { label: string }[] | null)?.label;
+    if (rol) rolPorObra.set(obra.id, rol);
     const slug = una(m.user_type as { slug: string } | { slug: string }[] | null)?.slug;
     if (slug === "owner" || slug === "admin" || slug === "supervisor" || slug === "operador" || slug === "cliente") {
       tipoPorObra.set(obra.id, slug);
@@ -157,6 +161,8 @@ export async function leerArranque(
       pisos: pisosPorObra.get(obra.id) ?? 0,
       empresa: empresa ? { id: empresa.id, nombre: empresa.name, logoUrl: empresa.logo_url } : null,
       portadaUrl: obra.image_url ?? obra.cover_url ?? null,
+      // El rol en el equipo de la obra («Director de obra»); lo muestra el menú de la obra.
+      rol: rolPorObra.get(obra.id) ?? null,
       acceso,
     });
   }
